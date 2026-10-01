@@ -1,31 +1,14 @@
 samba
 =====
 
-![](https://badge.imagelayers.io/vimagick/samba:latest.svg)
-
 [Samba][1] is the standard Windows interoperability suite of programs for
 Linux and Unix.
-
-## docker-compose.yml
-
-```yaml
-samba:
-  image: vimagick/samba
-  volumes:
-    - ./data/smb.conf:/etc/samba/smb.conf
-    - ./share:/share
-  net: host
-  tty: yes
-  restart: always
-```
-
-> Uncomment to use a customized config file.
 
 ## mnt-usb.mount
 
 An USB flash drive is mounted at `/mnt/usb`.
 
-```
+```ini
 # /etc/systemd/system/mnt-usb.mount
 [Unit]
 Description=USB Storage Mount
@@ -40,7 +23,7 @@ WantedBy=local-fs.target
 
 ## smb.conf
 
-```
+```ini
 [global]
 netbios name = easypi
 workgroup = WORKGROUP
@@ -65,22 +48,40 @@ admin users = root
 
 ## server
 
-```
+```bash
 $ cd ~/fig/samba
-$ mkdir share
-$ touch share/README.txt
-$ docker-compose up -d
-$ docker exec -it samba_samba_1 sh
+$ mkdir -m 777 -p data/{etc,log,mnt,var/private}
+$ touch data/mnt/README.txt
+$ docker compose up -d
+$ docker compose exec samba sh
 >>> testparm
 >>> smbpasswd -a root
 New SMB password:******
 Retype new SMB password:******
+Added user root.
+
+>>> adduser -S -D -H -s /sbin/nologin kev
+>>> smbpasswd -a kev
+New SMB password:******
+Retype new SMB password:******
+Added user kev.
+>>> smbpasswd -x kev
+Deleted user kev.
+
+>>> smbstatus
+>>> smbcontrol smbd close-share "*"
+>>> smbcontrol smbd kill-client-ip x.x.x.x
+>>> ls -ld /share
+drwxrwxrwx 3 1000 1000 /share
 >>> exit
 ```
 
-## client
+> [!Tip]
+> Use your own mounting point for sharing (e.g., /mnt/usb)
 
-```
+## client (linux)
+
+```bash
 $ smbutil view -NG smb://easypi
 Share                                           Type    Comments
 -------------------------------
@@ -93,6 +94,14 @@ $ mount_smbfs //guest@easypi/share /Volumes/share
 $ umount /Volumes/share
 ```
 
-> `root` user can read and write, `guest` user can read only.
+> `root` user can read and write, `guest` has the same perm as nobody
+
+## client (windows)
+
+[Enable insecure guest logons](https://learn.microsoft.com/en-us/windows-server/storage/file-server/enable-insecure-guest-logons-smb2-and-smb3?tabs=group-policy#enable-insecure-guest-logons)
+
+- Select Start, type `gpedit.msc`, and select Edit group policy.
+- In the left pane under Local Computer Policy, navigate to `Computer Configuration\Administrative Templates\Network\Lanman Workstation`.
+- Open `Enable insecure guest logons`, select Enabled, then select OK.
 
 [1]: https://www.samba.org/

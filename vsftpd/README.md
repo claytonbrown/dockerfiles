@@ -9,17 +9,21 @@ It is secure and extremely fast. It is stable. Don't take my word for it, though
 ```
 ~/fig/vsftpd/
 ├── docker-compose.yml
-├── ftp/
-│   └── README
-├── pam.d/
-│   └── vsftpd          => For Virutal User
-└── vsftpd/
-    ├── passwd          => For Virtual User
-    ├── vsftpd.conf
-    └── vsftpd.pem      => For SSL
+└── data/
+    ├── var/
+    │   ├── home
+    │   │   └── virtual     => For Local/Virtual Users (chown -R virtual:virtual ~virtual)
+    │   └── ftp             => For Anonymous Users
+    └── etc/
+        ├── pam.d/
+        │   └── vsftpd      => For Virutal Users
+        ├── passwd          => For Virtual Users
+        ├── vsftpd.conf
+        └── vsftpd.pem      => For SSL
 ```
 
-## vsftpd/vsftpd.conf
+<details>
+<summary>./data/etc/vsftpd.conf</summary>
 
 ```bash
 # DEFAULT SETTINGS
@@ -33,7 +37,7 @@ listen=YES
 local_enable=YES
 no_anon_password=YES
 pasv_addr_resolve=YES
-pasv_address=my-ftp-server # <== PLEASE CHANGE THIS
+pasv_address=ftp.easypi.duckdns.org    # <== PLEASE CHANGE THIS
 pasv_enable=YES
 pasv_max_port=30010
 pasv_min_port=30000
@@ -43,78 +47,85 @@ write_enable=YES
 xferlog_enable=YES
 
 # VIRTUAL USER SETTINGS
-#guest_enable=YES
-#guest_username=virtual
-#local_root=/home/virtual/$USER
-#pam_service_name=vsftpd
-#user_sub_token=$USER
-#virtual_use_local_privs=YES
+guest_enable=YES
+guest_username=virtual
+local_root=/home/virtual/$USER
+pam_service_name=vsftpd
+user_sub_token=$USER
+virtual_use_local_privs=YES
 
 # SSL SETTINGS
-#force_local_data_ssl=YES
-#force_local_logins_ssl=YES
-#rsa_cert_file=/etc/vsftpd/vsftpd.pem
-#rsa_private_key_file=/etc/vsftpd/vsftpd.pem
-#ssl_enable=YES
+force_local_data_ssl=YES
+force_local_logins_ssl=YES
+rsa_cert_file=/etc/vsftpd/vsftpd.pem
+rsa_private_key_file=/etc/vsftpd/vsftpd.pem
+ssl_enable=YES
 ```
 
-> Please set `pasv_address` to your ftp server.
+> [!Note]
+> Please set `pasv_address` to the domain name of your ftp server.
 
-## pam.d/vsftpd
+</details>
+
+<details>
+<summary>./data/etc/pam.d/vsftpd</summary>
 
 ```
 auth required pam_pwdfile.so pwdfile=/etc/vsftpd/passwd
 account required pam_permit.so
 ```
+</details>
 
 ## docker-compose.yml
 
-```yaml
-vsftpd:
-  image: vimagick/vsftpd
-  net: host
-# ports:
-#   - "20:20"
-#   - "21:21"
-#   - "30000-30010:30000-30010"
-  volumes:
-    - ./vsftpd:/etc/vsftpd
-    - ./ftp:/var/lib/ftp
-#   - ./pam.d/vsftpd:/etc/pam.d/vsftpd
-#   - ./virtual:/home/virtual
-  privileged: true
-  restart: always
-```
-
-> You can use `ports` instead of `net: host`.
+> [!Tip]
+> You can use `ports` instead of `network_mode: host`.
 > Make sure these ports are allowed by firewall.
 
 ## Server
 
 ```bash
 $ cd ~/fig/vsftpd/
-$ openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout vsftpd/vsftpd.pem -out vsftpd/vsftpd.pem
-$ echo "tom:$(openssl passwd -1 uzia9Tu6)" >> vsftpd/passwd
-$ echo "ftp's home" > ./ftp/README
-$ docker-compose up -d
-$ docker exec -it vsftpd_vsftpd_1 sh
->>>
->>> adduser kev
+$ mkdir -p data/{etc,var/{ftp,home}}
+$ openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout data/etc/vsftpd.pem -out data/etc/vsftpd.pem
+$ echo "tom:$(openssl passwd -1 secret)" >> data/etc/passwd
+$ echo "ftp's home" > ./data/var/ftp/README
+
+$ docker compose run --rm vsftpd sh
+>>> chown -R root:root /var/lib/ftp /etc/vsftpd /home
+>>> chmod 600 /etc/vsftpd/passwd
+>>> exit
+
+$ docker compose up -d
+$ docker compose exec vsftpd sh
+
+>>> # local user is only for auth, it will also chroot to ~virtual/$USER
+>>> adduser -h ~virtual/kev kev
 Changing password for kev
 New password: ******
 Retype password: ******
-Password for kev changed by root
 >>> echo "kev's home" > ~kev/README
->>>
->>> mkdir ~virtual/tom
+
+>>> id virtual
+uid=1000(virtual) gid=1000(virtual) groups=1000(virtual)
+>>> mkdir -p ~virtual/tom
 >>> echo "tom's home" > ~virtual/tom/README
->>> chown -R virutal:virtual ~virtual
->>>
+
+>>> # do it for local&virtual users
+>>> chown -R virtual:virtual ~virtual
+>>> tree /home
+└── virtual
+    ├── kev
+    │   └── README
+    └── tom
+        └── README
 >>> exit
 ```
 
+> [!Note]
 > I added a local user called `kev`, a virtual user called `tom` here.  
 > You can edit [/etc/vsftpd/vsftpd.conf][2] to enable more [functions][3].
+
 
 ## Client
 
@@ -124,7 +135,7 @@ You can login as `kev`(local user), `tom`(virtual user) or `ftp`(anonymous user)
 $ ftp my-ftp-server
 Connected to my-ftp-server.
 220 Welcome to VSFTPD service.
-Name (my-ftp-server:kev): ftp
+Name (my-ftp-server:(none)): ftp    # <= ftp is anonymous user
 230 Login successful.
 Remote system type is UNIX.
 Using binary mode to transfer files.
@@ -146,7 +157,28 @@ Permission denied.
 ftp> bye
 ```
 
-Only local user or virtual user can upload file.
+> [!Caution]
+> Local user `kev` can login, but cannot do anything else:  
+> Fatal error: gnutls_record_recv: An unexpected TLS packet was received.
+>> `sudo strace -f -s 200 -e trace=read,write -p $(pidof vsftpd)`  
+>> It shows that local user is acting like virtual, it cannot chroot to `/home/virtual/kev` :cry:  
+>> You need to move `/home/kev` to `/home/virtual/kev` (`chown virtual:virtual`)  
+>> To make life easier, just use virtual users only!
+
+```bash
+$ lftp 
+lftp> set ftp:ssl-allow off
+lftp> open my-ftp-server
+lftp> user ftp
+Password:  <= no password here, just press enter
+lftp> ls
+lftp> bye
+```
+
+> [!Note]
+> Anonymous sessions may not use encryption (allow_anon_ssl=NO)
+
+Only local user or virtual user can upload/delete file.
 
 ```bash
 $ lftp

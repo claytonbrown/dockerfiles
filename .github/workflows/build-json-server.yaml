@@ -1,0 +1,29 @@
+name: Build JSON-Server
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - json-server/Dockerfile
+      - .github/workflows/build-json-server.yaml
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GHCR_PAT }}
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Docker Build and Notify
+        uses: ./.github/actions/docker-build-notify
+        with:
+          context: 'json-server'
+          image_name: 'easypi/json-server'
+          version_arg: 'JSON_SERVER_VERSION'
+          version_value: '1.0.0-beta.15'

@@ -12,10 +12,9 @@ protocols.
 ### docker-compose.yml
 
 ```yaml
-version: '2'
 services:
   strongswan:
-    image: vimagick/strongswan
+    image: easypi/strongswan
     ports:
       - 500:500/udp
       - 4500:4500/udp
@@ -23,14 +22,21 @@ services:
       - /lib/modules:/lib/modules
       - /etc/localtime:/etc/localtime
     environment:
-      - VPN_DOMAIN=vpn.easypi.info
+      - VPN_DOMAIN=vpn.easypi.duckdns.org
       - VPN_NETWORK=10.20.30.0/24
       - LAN_NETWORK=192.168.0.0/16
       - VPN_P12_PASSWORD=secret
     tmpfs: /run
-    privileged: yes
-    restart: always
+    privileged: true
+    restart: unless-stopped
 ```
+
+| Variable           | Role                                     | Maps to                |
+| ------------------ | ---------------------------------------- | ---------------------- |
+| `VPN_DOMAIN`       | Server's public hostname / identity      | `leftid`               |
+| `VPN_NETWORK`      | Virtual IP pool for clients              | `rightsourceip`        |
+| `LAN_NETWORK`      | Real LAN reachable via tunnel            | `rightsubnets`         |
+| `VPN_P12_PASSWORD` | Password for the client `.p12` bundle    | (client import only)   |
 
 ### up and running
 

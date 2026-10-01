@@ -1,0 +1,23 @@
+services:
+  apprise:
+    image: caronc/apprise:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data/config:/config
+      - ./data/attach:/attach
+      - ./data/plugin:/plugin
+    environment:
+      - APPRISE_STATEFUL_MODE=simple
+      - APPRISE_WORKER_COUNT=1
+      - APPRISE_ADMIN=y
+      - TZ=Asia/Shanghai
+    tmpfs:
+      - /tmp
+    user: "1000:1000"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped

@@ -1,0 +1,29 @@
+name: Build Privoxy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - privoxy/Dockerfile
+      - .github/workflows/build-privoxy.yaml
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GHCR_PAT }}
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Docker Build and Notify
+        uses: ./.github/actions/docker-build-notify
+        with:
+          context: 'privoxy'
+          image_name: 'easypi/privoxy'
+          version_arg: 'PRIVOXY_VERSION'
+          version_value: '4.0.0'

@@ -2,7 +2,7 @@
 # Dockerfile for dante
 #
 
-FROM debian:bookworm
+FROM debian:12
 MAINTAINER EasyPi Software Foundation
 
 ARG DANTE_VER=1.4.4
@@ -12,7 +12,7 @@ ARG DANTE_FILE=dante.tar.gz
 ARG DANTE_TEMP=dante
 ARG DANTE_DEPS="build-essential curl"
 
-ARG GUESS_URL="http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD"
+ARG GUESS_URL="https://github.com/gcc-mirror/gcc/raw/refs/heads/master/config.guess"
 ARG GUESS_FILE=config.guess
 
 RUN set -xe \
@@ -31,12 +31,13 @@ RUN set -xe \
     && apt-get purge -y --auto-remove $DANTE_DEPS \
     && rm -rf /var/lib/apt/lists/*
 
-COPY data/sockd.conf /etc/dante/sockd.conf
-
 ENV CFGFILE=/etc/dante/sockd.conf
 ENV PIDFILE=/run/sockd.pid
 ENV WORKERS=10
 
 EXPOSE 1080
 
-CMD sockd -f $CFGFILE -p $PIDFILE -N $WORKERS
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

@@ -2,12 +2,11 @@
 # Dockerfile for samba
 #
 
-FROM alpine
-MAINTAINER kev <noreply@easypi.pro>
+FROM alpine:3.24
+MAINTAINER EasyPi Software Foundation
 
-RUN apk add --no-cache samba-common-tools samba-server
-
-COPY ./data/smb.conf /etc/samba/
+RUN apk add --no-cache samba-common-tools samba-server \
+ && addgroup -S -g 666 sambashare
 
 VOLUME /etc/samba \
        /var/lib/samba
@@ -17,4 +16,4 @@ EXPOSE 137/udp \
        139/tcp \
        445/tcp
 
-CMD nmbd -D && smbd -FS --no-process-group
+CMD nmbd -D && smbd -F --no-process-group

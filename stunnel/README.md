@@ -6,11 +6,38 @@ existing clients and servers without any changes in the programs' code.
 
 ### Overview
 
+```mermaid
+flowchart LR
+    subgraph JP["Japan"]
+        M["master<br/>1.2.3.4:4911<br/>stunnel-server"]
+        O["VPN<br/>1.2.3.4:1194<br/>openvpn-server"]
+        M -- "forwards to<br/>1.2.3.4:1194" --> O
+    end
+
+    subgraph CN["China"]
+        B["bridge<br/>5.6.7.8:1194<br/>stunnel-client"]
+        C["LAN<br/>192.168/16<br/>openvpn-client"]
+    end
+
+    B -- "stunnel connection<br/>to 1.2.3.4:4911" --> M
+    C -- "OpenVPN tunnel<br/>to 5.6.7.8:1194" --> B
+    C -. "end-to-end path" .-> O
+
+    classDef jp fill:#e8f4ff,stroke:#1f6feb,color:#000
+    classDef cn fill:#fff4e5,stroke:#d97706,color:#000
+    class M,O jp
+    class B,C cn
+```
+
 domain | ip:port      | country | services
 -------| ------------ | ------- | ------------------------------
-master | 1.2.3.4:4911 | Japan   | openvpn-server, stunnel-server
+VPN    | 1.2.3.4:1194 | Japan   | openvpn-server
+master | 1.2.3.4:4911 | Japan   | stunnel-server
 bridge | 5.6.7.8:1194 | China   | stunnel-client
-N/A    | 192.168/16   | China   | openvpn-client
+LAN    | 192.168/16   | China   | openvpn-client
+
+> [!Tip]
+> Run bridge in the same LAN as client for best performance.
 
 ### Server Setup (Cloud)
 
@@ -39,8 +66,6 @@ accept = 127.0.0.1:1194
 connect = 1.2.3.4:4911
 ```
 
-> Pro Tip: Running stunnel locally is faster.
-
 ### OpenVPN Setup (Partial)
 
 ```ini
@@ -64,7 +89,13 @@ route 192.168.0.0 255.255.0.0 net_gateway
 
 ### For Gmail Forwarding
 
+<details>
+<summary>File: gmail.conf</summary>
+
 ```ini
+;
+; Sample stunnel configuration file: https://www.stunnel.org/config_unix.html
+;
 ;debug = info
 ;output = /var/log/stunnel.log
 foreground = yes
@@ -88,6 +119,10 @@ client = yes
 accept = 127.0.0.1:25
 connect = smtp.gmail.com:465
 ```
+</details>
+
+<details>
+<summary>File: nginx.conf</summary>
 
 ```nginx
 stream {
@@ -120,5 +155,9 @@ stream {
     }
 }
 ```
+</details>
+
+> [!Important]
+> You need to adjust the listening address for docker deployment
 
 [1]: https://www.stunnel.org/index.html

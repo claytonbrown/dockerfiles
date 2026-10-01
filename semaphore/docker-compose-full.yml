@@ -1,0 +1,70 @@
+#
+# https://semaphoreui.com/install/docker/2_19/
+# https://github.com/docker-library/postgres/blob/master/18/alpine3.24/Dockerfile
+#
+
+services:
+
+  semaphore:
+    image: semaphoreui/semaphore:v2.19.14
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data/semaphore/etc:/etc/semaphore
+      - ./data/semaphore/var:/var/lib/semaphore
+      - ./data/semaphore/tmp:/tmp/semaphore
+    environment:
+      ANSIBLE_HOST_KEY_CHECKING: "False"
+      SEMAPHORE_DB_DIALECT: postgres
+      SEMAPHORE_DB_HOST: postgres
+      SEMAPHORE_DB_PORT: 5432
+      SEMAPHORE_DB_NAME: semaphore
+      SEMAPHORE_DB_USER: semaphore
+      SEMAPHORE_DB_PASS: semaphore
+      SEMAPHORE_DB_OPTIONS: '{"sslmode":"disable"}'
+      SEMAPHORE_ADMIN: admin
+      SEMAPHORE_ADMIN_NAME: admin
+      SEMAPHORE_ADMIN_PASSWORD: admin
+      SEMAPHORE_ADMIN_EMAIL: admin@localhost
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: "********************************************"
+      SEMAPHORE_TOTP_ENABLED: "True"
+      SEMAPHORE_TOTP_ALLOW_RECOVERY: "True"
+      SEMAPHORE_SLACK_ALERT: "True"
+      SEMAPHORE_SLACK_URL: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+      SEMAPHORE_USE_REMOTE_RUNNER: "True"
+      SEMAPHORE_RUNNER_REGISTRATION_TOKEN: "********************************************"
+      SEMAPHORE_METRICS_ENABLED: "True"
+      SEMAPHORE_METRICS_USERNAME: prometheus
+      SEMAPHORE_METRICS_PASSWORD: changeme
+    working_dir: /etc/semaphore
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  runner:
+    image: semaphoreui/semaphore-runner:v2.19.14
+    volumes:
+      - ./data/runner/etc:/etc/semaphore
+      - ./data/runner/var:/var/lib/semaphore
+      - ./data/runner/tmp:/tmp/semaphore
+    environment:
+      ANSIBLE_HOST_KEY_CHECKING: "False"
+      SEMAPHORE_WEB_ROOT: "https://semaphore.example.com"
+      SEMAPHORE_RUNNER_REGISTRATION_TOKEN: "********************************************"
+      SEMAPHORE_RUNNER_PRIVATE_KEY_FILE: /var/lib/semaphore/runner.key
+      SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS: 5
+    depends_on:
+      - semaphore
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:18-alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql
+    environment:
+      POSTGRES_USER: semaphore
+      POSTGRES_PASSWORD: semaphore
+      POSTGRES_DB: semaphore
+    restart: unless-stopped
